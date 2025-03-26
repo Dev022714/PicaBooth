@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit Photo Strip</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>Edit Your Photo Strip</h1>
+
+  <div id="stripContainer">
+    <div id="photoStrip">
+      <div class="photoSlot">
+        <img id="img1" src="" alt="Photo 1">
+      </div>
+      <div class="photoSlot">
+        <img id="img2" src="" alt="Photo 2">
+      </div>
+      <div class="photoSlot">
+        <img id="img3" src="" alt="Photo 3">
+      </div>
+      <div class="photoSlot">
+        <img id="img4" src="" alt="Photo 4">
+      </div>
+
+      <div class="footer">
+        <span>PicaBooth</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frame color selection -->
+  <div class="frameOptions">
+    <label for="frameColor">Choose a Frame:</label>
+    <select id="frameColor" onchange="changeFrameColor()">
+      <option value="black">Classic Black</option>
+      <option value="white">White</option>
+      <option value="gold">Gold</option>
+      <option value="pink">Pink</option>
+      <option value="green">Green</option>
+      <option value="blue">Blue</option>
+      <option value="mediumpurple">Pastel Purple</option>
+    </select>
+  </div>
+
+  <!-- Save button -->
+  <button onclick="downloadStrip()">Save Edited Strip</button>
+
+  <!-- Draggable stickers -->
+  <div class="stickers">
+    <img src="heart.png" class="sticker" draggable="true" ondragstart="startDrag(event)">
+    <img src="star.png" class="sticker" draggable="true" ondragstart="startDrag(event)">
+    <img src="glasses.png" class="sticker" draggable="true" ondragstart="startDrag(event)">
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    const frame = document.getElementById('photoStrip');
+    const photoSlots = document.querySelectorAll('.photoSlot');
+    const frameColorSelect = document.getElementById('frameColor');
+    let draggedSticker;
+
+    // Load photos from localStorage
+    function loadPhotos() {
+      const photo1 = localStorage.getItem('photo1');
+      const photo2 = localStorage.getItem('photo2');
+      const photo3 = localStorage.getItem('photo3');
+      const photo4 = localStorage.getItem('photo4');
+
+      if (!photo1 || !photo2 || !photo3 || !photo4) {
+        alert('Some photos are missing!');
+        return;
+      }
+
+      document.getElementById('img1').src = photo1;
+      document.getElementById('img2').src = photo2;
+      document.getElementById('img3').src = photo3;
+      document.getElementById('img4').src = photo4;
+    }
+
+    // Change the frame and separator color
+    function changeFrameColor() {
+      const color = frameColorSelect.value;
+
+      frame.style.borderColor = color;
+
+      photoSlots.forEach(slot => {
+        slot.style.borderBottomColor = color;
+      });
+    }
+
+    // Drag & Drop for stickers
+    function startDrag(event) {
+      draggedSticker = event.target.cloneNode(true);
+    }
+
+    frame.addEventListener('dragover', event => {
+      event.preventDefault();
+    });
+
+    frame.addEventListener('drop', event => {
+      event.preventDefault();
+      if (draggedSticker) {
+        draggedSticker.classList.add('draggable');
+        frame.appendChild(draggedSticker);
+
+        draggedSticker.style.left = `${event.offsetX - draggedSticker.width / 2}px`;
+        draggedSticker.style.top = `${event.offsetY - draggedSticker.height / 2}px`;
+
+        makeStickerDraggable(draggedSticker);
+        draggedSticker = null;
+      }
+    });
+
+    function makeStickerDraggable(sticker) {
+      let offsetX, offsetY;
+
+      sticker.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+
+        function moveAt(pageX, pageY) {
+          sticker.style.left = `${pageX - frame.offsetLeft - offsetX}px`;
+          sticker.style.top = `${pageY - frame.offsetTop - offsetY}px`;
+        }
+
+        function onMouseMove(e) {
+          moveAt(e.pageX, e.pageY);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+
+        sticker.addEventListener('mouseup', () => {
+          document.removeEventListener('mousemove', onMouseMove);
+        }, { once: true });
+      });
+    }
+
+    // Download photo strip including stickers
+    function downloadStrip() {
+      html2canvas(frame).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'PicaBooth.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+
+    window.onload = loadPhotos;
+  </script>
+
+  <!-- html2canvas library -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</body>
+</html>

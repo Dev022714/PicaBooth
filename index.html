@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Photo Booth</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>Photo Booth</h1>
+
+  <video id="video" autoplay style="transform: scaleX(-1);"></video>
+  <canvas id="canvas" style="display: none;"></canvas>
+
+  <div class="toolbar">
+    <label for="photoCount">Photos:</label>
+    <select id="photoCount">
+      <option value="4">4 Photos (1 Strip)</option>
+      <option value="8">8 Photos (2 Strips)</option>
+    </select>
+
+    <label for="timerOption">Timer:</label>
+    <select id="timerOption">
+      <option value="3">3s Countdown</option>
+      <option value="5">5s Countdown</option>
+      <option value="10">10s Countdown</option>
+    </select>
+
+    <button onclick="startSession()">Start Session</button>
+  </div>
+
+  <div id="photoActionArea" style="display: none;">
+    <h2>Preview Photo</h2>
+    <img id="photoPreview" src="" alt="Photo Preview" style="width: 300px; border: 5px solid #423b3b; border-radius: 10px; transform: scaleX(-1);"/>
+    <div>
+      <button onclick="retakePhoto()">Retake</button>
+      <button onclick="proceedPhoto()">Proceed</button>
+    </div>
+  </div>
+
+  <div id="stripPreview"></div>
+
+  <div id="countdownOverlay"></div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const stripPreview = document.getElementById('stripPreview');
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const photoActionArea = document.getElementById('photoActionArea');
+    const photoPreview = document.getElementById('photoPreview');
+
+    let photoCount = 4;
+    let timerDuration = 3;
+    let photosTaken = 0;
+    let photos = [];
+    let currentPhotoData = null;
+
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      video.srcObject = stream;
+    });
+
+    function startSession() {
+      photoCount = parseInt(document.getElementById('photoCount').value);
+      timerDuration = parseInt(document.getElementById('timerOption').value);
+
+      photosTaken = 0;
+      photos = [];
+      stripPreview.innerHTML = '';
+
+      takeNextPhoto();
+    }
+
+    function takeNextPhoto() {
+      if (photosTaken >= photoCount) {
+        saveStrip();
+        return;
+      }
+
+      countdown(timerDuration, () => {
+        capturePhoto();
+        showPhotoAction(); 
+      });
+    }
+
+    function countdown(seconds, callback) {
+      countdownOverlay.style.display = 'flex';
+      countdownOverlay.textContent = seconds;
+
+      let timeLeft = seconds;
+      const interval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          countdownOverlay.style.display = 'none';
+          callback();
+        } else {
+          countdownOverlay.textContent = timeLeft;
+        }
+      }, 1000);
+    }
+
+    function capturePhoto() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      currentPhotoData = canvas.toDataURL('image/png');
+      photoPreview.src = currentPhotoData;
+      photoActionArea.style.display = 'block';
+    }
+
+    function retakePhoto() {
+      photoActionArea.style.display = 'none';
+      takeNextPhoto(); // Retake without incrementing photosTaken
+    }
+
+    function proceedPhoto() {
+      photos.push(currentPhotoData);
+
+      // Store each photo individually in localStorage
+      localStorage.setItem(`photo${photosTaken + 1}`, currentPhotoData);
+
+      const img = document.createElement('img');
+      img.src = currentPhotoData;
+      img.width = 100;
+      img.style.transform = 'scaleX(-1)';
+      stripPreview.appendChild(img);
+
+      photosTaken++;
+      photoActionArea.style.display = 'none';
+
+      setTimeout(takeNextPhoto, 500);
+    }
+
+    function saveStrip() {
+      const stripCanvas = document.createElement('canvas');
+
+      const stripWidth = 400;
+      const photosPerStrip = 4;
+      const strips = Math.ceil(photos.length / photosPerStrip);
+      const stripHeight = photosPerStrip * 300;
+
+      stripCanvas.width = stripWidth * strips;
+      stripCanvas.height = stripHeight;
+
+      const stripCtx = stripCanvas.getContext('2d');
+
+      photos.forEach((photo, index) => {
+        const img = new Image();
+        img.src = photo;
+
+        const stripIndex = Math.floor(index / photosPerStrip);
+        const positionInStrip = index % photosPerStrip;
+
+        img.onload = () => {
+          stripCtx.drawImage(
+            img,
+            stripIndex * stripWidth,
+            positionInStrip * 300,
+            stripWidth,
+            300
+          );
+
+        };
+      });
+
+      setTimeout(() => {
+        const stripDataUrl = stripCanvas.toDataURL('image/png');
+        localStorage.setItem('stripImage', stripDataUrl);
+
+        window.location.href = 'edit.html';
+      }, 500);
+    }
+  </script>
+</body>
+</html>
